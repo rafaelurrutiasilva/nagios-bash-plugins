@@ -1,0 +1,182 @@
+#!/bin/bash
+#
+#       sysmanXse
+#       R Urrutia
+#
+# ------------------------------------------------------------------------------------
+#
+#       Nagios check plugin for Linux 
+#
+# ------------------------------------------------------------------------------------
+
+program=`basename $0`
+version="2021-08-11, Rafael.Urrutia.S@gmail.com"
+
+# Nagios return codes
+STATE_OK=0
+STATE_WARNING=1
+STATE_CRITICAL=2
+STATE_UNKNOWN=3
+
+# Get OS name
+PhotonOS=0
+SUSE=0
+CentOS=0
+OSFile=/etc/os-release
+
+if [ ! -f $OSFile ];then
+	echo " Missing OS file $OSFile!"
+	echo " Plaese create a symlink to the actual one"
+	exit $STATE_UNKNOWN
+fi
+
+cat $OSFile |grep ^NAME|grep "Photon" 		> /dev/null 2>&1 && PhotonOS=1
+cat $OSFile |grep PRETTY_NAME|grep SUSE  	> /dev/null 2>&1 && SUSE=1
+cat $OSFile |grep CentOS  			> /dev/null 2>&1 && CentOS=1
+
+
+print_help() {
+	echo $version
+        echo ""
+        echo "This Nagios plugin will check tasks, cpu, mem or swap using command top"
+        echo ""
+        echo "$program [ -U | --uptime ] [ -T | --tasks ] [ -L | --load ] [ -C | --cpu ] [ -M | --mem ] [ -S | --swap ]"
+        echo ""
+        exit $STATE_UNKNOWN
+}
+
+check_tasks() {
+        STATE=1
+        TASK=$(top -bn1  |grep ^Task |awk '{print$0 " |Total="$2";Running="$4";Sleeping="$6";Stopped="$8";Zombie="$10}') && STATE=0
+        if [ $STATE -eq 0 ];then
+                echo "OK - $TASK"
+                exit $STATE_OK
+        else
+                echo "UNKNOWN - check konfiguration or executed command"
+                exit $STATE_UNKNOWN
+        fi
+}
+
+check_uptime(){
+	STATE=1
+	UPTIME=$(top -bn1 |grep -w up |awk '{print"Uptime: "$5,$6,$7,$3 " |days="$5";hours="$7}') && STATE=0
+	if [ $STATE -eq 0 ];then
+		echo "OK - $UPTIME"
+                exit $STATE_OK
+        else
+                echo "UNKNOWN - check konfiguration or executed command"
+                exit $STATE_UNKNOWN
+        fi
+}
+
+check_cpu() {
+        STATE=1
+	if [ $SUSE -eq 1 ];then
+		CPU=$(top -bn1  |egrep "^%Cpu|^Cpu") && STATE=0
+	elif [ $PhotonOS -eq 1 ];then
+		echo "CPU Check not implemented on 'VMware Photon OS' jet."
+		exit $STATE_UNKNOWN
+
+	elif [ $CentOS -eq 1 ];then
+		CPU=$(top -bn1 |egrep ^Cpu) && STATE=0
+		CPUPERFd=$(echo $CPU|tr '%' ' ' |awk '{print"us="$2 ";sy="$4 ";ni="$6 ";$id="$8 ";wa="$10 ";hi="$12 ";si="$14 ";st="$16}')
+		CPU="$CPU | $CPUPERFd"
+	else
+		CPU=$(top -bn1 |egrep "^%Cpu|^Cpu" |awk '{print$0 " |us="$2";sy="$4";ni="$6";id="$8";wa="$10";hi="$12";si="$14";st="$16}') && STATE=0
+	fi
+        if [ $STATE -eq 0 ];then
+                echo "OK - $CPU"
+                exit $STATE_OK
+        else
+                echo "UNKNOWN - check konfiguration or executed command"
+                exit $STATE_UNKNOWN
+        fi
+}
+
+check_mem() {
+        STATE=1
+	if [ $SUSE -eq 1 ];then
+		MEM=$(top -bn1  |grep ^Mem: |awk '{print$0 " |total="$2";used="$4";free="$6";buffers="$8}') && STATE=0
+	elif [ $PhotonOS -eq 1 ];then
+		MEM=$(top -bn1  |grep ^"GiB Mem" |awk -F"[" '{print$1}') && STATE=0
+	elif [ $CentOS -eq 1 ];then
+		MEM=$(top -bn1  |grep ^"Mem" |awk '{print$0 " |total="$2";used="$4";free="$6";buffers="$8}') && STATE=0
+	else
+        	MEM=$( top -bn1 |grep ^"KiB Mem" |awk '{print$0 " |total="$3";used="$5";free="$7";buffers="$9}') && STATE=0
+	fi
+        if [ $STATE -eq 0 ];then
+                echo "OK - $MEM"
+                exit $STATE_OK
+        else
+                echo "UNKNOWN - check konfiguration or executed command"
+                exit $STATE_UNKNOWN
+        fi
+}
+
+check_swap() {
+        STATE=1
+	if [ $SUSE -eq 1 ];then
+		SWAP=$(top -bn1  |egrep ^"Swap:" |awk '{print$0 " |total="$2";used="$4";free="$6";cached="$8}') && STATE=0
+	elif [ $PhotonOS -eq 1 ];then
+		SWAP=$(top -bn1| grep ^"GiB Swap:" |awk -F"[" '{print$1}') && STATE=0
+	elif [ $CentOS -eq 1 ];then
+		SWAP=$(top -bn1  |egrep "Swap:" |awk '{print$0 " |total="$2";used="$4";free="$6";cached="$8}') && STATE=0
+	else
+		SWAP=$(top -bn1  |egrep "Swap:" |awk '{print$0 " |total="$3";free="$5";used="$7";avail Mem="$9}') && STATE=0
+	fi
+        if [ $STATE -eq 0 ];then
+                echo "OK - $SWAP"
+                exit $STATE_OK
+        else
+                echo "UNKNOWN - check konfiguration or executed command"
+                exit $STATE_UNKNOWN
+        fi
+}
+
+check_load() {
+        STATE=1
+        LOAD=$(top -bn1  |grep "load average" |awk '{print$0 " |load1="$12"; load5="$13"; load15="$14}'|sed 's/,//g') && STATE=0
+        if [ $STATE -eq 0 ];then
+                echo "OK - $LOAD"
+                exit $STATE_OK
+        else
+                echo "UNKNOWN - check konfiguration or executed command"
+                exit $STATE_UNKNOWN
+        fi
+}
+
+
+
+# Parse parameters
+[[ $# -eq 0 ]] && print_help
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h | --help)
+                print_help
+                exit $STATE_OK
+                ;;
+        -T | --tasks)
+                check_tasks
+                ;;
+	-U | --uptime)
+		check_uptime
+		;;
+        -C | --cpu)
+                check_cpu
+                ;;
+        -M | --mem)
+                check_mem
+                ;;
+        -S | --swap)
+                check_swap
+                ;;
+        -L | --load)
+                check_load
+                ;;
+
+        *)
+            print_help
+            ;;
+        esac
+shift
+done

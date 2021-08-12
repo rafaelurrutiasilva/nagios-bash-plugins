@@ -1,0 +1,107 @@
+#!/bin/bash
+#
+#       sysmanXse
+#       R Urrutia
+#
+# ------------------------------------------------------------------------------------
+#
+#       Nagios check plugin for Linux 
+#
+# ------------------------------------------------------------------------------------
+
+program=`basename $0`
+version="2021-08-11, Rafael.Urrutia.S@gmail.com"
+
+
+# Nagios return codes
+STATE_OK=0
+STATE_WARNING=1
+STATE_CRITICAL=2
+STATE_UNKNOWN=3
+
+
+print_help() {
+        echo ""
+        echo "This Nagios plugin will check the age of files matching the name parameter in the specified path."
+        echo ""
+        echo "$program [ -P | --path ] [ -C | --count ] [ -M | --minutes ]"
+        echo ""
+        echo "Arguments."
+        echo "  -P, --path              path to backup directory "
+        echo "  -C  --count             expected number of files "
+        echo "  -M  --minutes           maximum age in minutes "
+        echo "  -N  --name              file name to filter"
+        echo "  -h  --help              display this help and exit"
+        exit $STATE_UNKNOWN
+}
+
+
+
+
+check_file_age(){
+        TASK=$(find $path -iname $name -type f -mmin -$minutes | tail -$count | wc -l)
+        if [[ $TASK -eq $count ]]; then STATE=0; else STATE=1; fi
+
+        if [ $STATE -eq 0 ]; then
+                for file in $(find $path -iname $name -type f -mmin -$minutes -printf '%f\n' | tail -$count); do
+                        if [ -z "$fileList" ];then fileList="$file"; else fileList="$fileList, $file"; fi
+                done
+                numFiles=$(echo $fileList | wc -w)
+                echo "OK - ($TASK/$count) $path $fileList | FoundFiles=$numFiles"
+                exit $STATE_OK
+
+        elif [ $STATE -eq 1 ]; then
+                for file in $(find $path -iname $name -type f -mmin -$minutes -printf '%f\n' | tail -$count); do
+                        if [ -z "$fileList" ];then fileList="$file"; else fileList="$fileList, $file"; fi
+                done
+                numFiles=$(echo $fileList | wc -w)
+                echo "CRITICAL - ($TASK/$count) $path $fileList | FoundFiles=$numFiles"
+                exit $STATE_CRITICAL
+        else
+                echo "UNKNOWN - check configuration or executed command"
+                exit $STATE_UNKNOWN
+        fi
+}
+
+
+
+# Parse parameters
+[[ $# -eq 0 ]] && print_help
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h | --help)
+                print_help
+                exit $STATE_OK
+                ;;
+        -P | --path)
+                path=$2
+                shift
+                ;;
+        -C | --count)
+                count=$2
+                shift
+                ;;
+        -M | --minutes)
+                minutes=$2
+                shift
+                ;;
+        -N | --name)
+                name=$2
+                shift
+                ;;
+        *)
+            print_help
+            ;;
+        esac
+shift
+done
+
+
+
+
+if [[ -z $path || -z $count || -z $minutes ]]; then
+    echo "UNKNOWN - missing required parameter"
+    exit $STATE_UNKNOWN
+else
+    check_file_age
+fi
