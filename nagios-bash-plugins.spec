@@ -4,9 +4,9 @@
 %define name        nagios-bash-plugins
 %define summary     Nagios plugin written in bash
 
-%define packager    R Urrutia <Rafael.Urrutia.S@gmail.com
+%define packager    	R Urrutia <Rafael.Urrutia.S@gmail.com
 
-%define INSTALLBASE    /usr/local/nagios/libexec
+%define INSTALLBASE    	/usr/local/nagios/libexec
 
 
 Summary:        %{summary}
@@ -14,6 +14,7 @@ Name:           %{name}
 Version:        %{version}
 Release:        %{release}
 Packager:       %{packager}
+License:	sysmanXse
 Group:          Applications/System
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
@@ -29,9 +30,8 @@ rm -rf $RPM_BUILD_ROOT
 %install
 mkdir -p $RPM_BUILD_ROOT/%{INSTALLBASE}
 
-cp $RPM_SOURCE_DIR/Readme	$RPM_BUILD_ROOT/%{INSTALLBASE}/
+cp $RPM_SOURCE_DIR/plugins/*	$RPM_BUILD_ROOT/%{INSTALLBASE}/.
 
-[[ -d $RPM_SOURCE_DIR/crl ]] && cp -r $RPM_SOURCE_DIR/crl       $RPM_BUILD_ROOT/%{SWAPHOME}/
 
 %post
 
@@ -41,6 +41,8 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(0755,root,root,-)
+%{INSTALLBASE}
+
 
 %changelog
 * Tue Aug 31 2021 R Urrutia
