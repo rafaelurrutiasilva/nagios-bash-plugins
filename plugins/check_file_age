@@ -1,8 +1,5 @@
 #!/bin/bash
 #
-#       sysmanXse
-#       R Urrutia
-#
 # ------------------------------------------------------------------------------------
 #
 #       Nagios check plugin for Linux 
