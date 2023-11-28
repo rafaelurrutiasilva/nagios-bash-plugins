@@ -9,5 +9,5 @@ Use the argument <code> --help </code> to get infrmation about how to use the pl
 You can put the files whereever you want in the file system but one recommendation is the <code> /usr/local/nagios/libexec/ </code>. Other place can be <code> /opt/nagios/plugins/ </code>. You are also welome to use the spec-file and build the rpm-package and then install using that.
 
 <h2> Use RPM package </h2>
-You can use the existing spec-file to create an rpm-packege. The files will then be installed in path <code> /usr/local/nagios/libexec/ </code>.
+You can use the existing spec file to create an RPM package. The files will then be installed in the specified path: `/usr/local/nagios/libexec/`.
 
